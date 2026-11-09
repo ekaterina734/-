@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Лесная бродилка</title>
+<style>
+/* Всё оформление находится здесь. Цвета можно менять в этих переменных. */
+:root {
+  --sky: #e5f3fc;
+  --ink: #304b5a;
+  --blue: #588bab;
+  --back: #ffe1d9;
+  --forward: #ddf0dd;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--sky); color: var(--ink); font-family: Arial, sans-serif; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid #467d9e; outline-offset: 4px; }
+.page { max-width: 1160px; margin: 0 auto; padding: 38px 24px; }
+header { margin-bottom: 25px; }
+.eyebrow { margin: 0 0 8px; color: #587b91; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+h1 { margin: 0 0 12px; font-size: clamp(28px, 5vw, 38px); font-weight: 700; letter-spacing: -1px; }
+.intro { margin: 0; color: #5e7888; line-height: 1.6; font-size: 15px; }
+.game { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
+.panel { border: 1px solid #d5e5ef; background: #ffffffed; border-radius: 20px; }
+.animals { padding: 20px 14px; }
+h2 { font-size: 17px; margin: 0 0 6px; }
+.small { margin: 0; font-size: 12px; line-height: 1.6; color: #708693; }
+.animal-card { border: 1px solid #e1e9ee; border-radius: 13px; margin-top: 14px; padding: 10px; background: #fafcfd; transition: border-color .15s; }
+.animal-card.active { border-color: #7ca8c4; background: #f0f7fc; }
+.animal-choice { border: none; background: transparent; padding: 3px 0; width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left; font-size: 13px; font-weight: bold; }
+.choice-dot { width: 9px; height: 9px; border-radius: 50%; background: #d9e4eb; }
+.active .choice-dot { background: var(--blue); }
+.home { height: 66px; display: flex; justify-content: center; align-items: center; margin: 5px 0; border-radius: 8px; }
+.home:empty::after { content: 'Зверёк на поле'; color: #8a9ca6; font-size: 11px; }
+.position { text-align: center; font-size: 11px; color: #6d8594; }
+.token { width: 49px; height: 55px; padding: 0; border: none; background: none; display: inline-flex; align-items: center; justify-content: center; cursor: grab; touch-action: manipulation; flex-shrink: 0; }
+.token svg { width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 2px 1px #304b5a15); }
+.token:active { cursor: grabbing; }
+.token.dragging { opacity: .35; }
+.board-panel { padding: 23px 22px 20px; overflow: hidden; }
+.board-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.pill { font-size: 11px; padding: 7px 10px; background: #eef5f9; border-radius: 20px; white-space: nowrap; color: #648294; }
+.board-scroll { overflow-x: auto; padding: 6px 3px 12px; }
+.board { min-width: 670px; position: relative; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); grid-template-rows: repeat(3, 100px); gap: 10px; }
+.path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cell { position: relative; z-index: 1; min-width: 0; border: 1px solid #cfdee7; border-radius: 12px; background: #f5faff; padding: 8px 5px 3px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.cell.start { background: #e1effc; border-color: #b8d1e7; }
+.cell.finish { background: #fff0c9; border-color: #e9d699; }
+.cell.back { background: var(--back); border-color: #e5b6aa; }
+.cell.forward { background: var(--forward); border-color: #b7d3b7; }
+.cell.over { outline: 3px solid #6b9cb9; outline-offset: 2px; transform: translateY(-3px); }
+.cell.suggested { box-shadow: 0 0 0 3px #8fb5cf; }
+.cell-number { font-size: 13px; font-weight: bold; }
+.cell-label { font-size: 9px; text-align: center; margin-top: 5px; min-height: 13px; white-space: nowrap; }
+.cell-tokens { margin-top: auto; width: 100%; display: flex; justify-content: center; align-items: flex-end; min-height: 43px; }
+.cell .token { width: 34px; max-width: 47%; height: 43px; margin: 0 -3px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 15px 0 1px; font-size: 11px; color: #6b8190; }
+.legend span { display: inline-flex; gap: 7px; align-items: center; }
+.swatch { width: 10px; height: 10px; display: inline-block; border-radius: 3px; background: var(--back); border: 1px solid #dfb4a9; }
+.swatch.green { background: var(--forward); border-color: #b7d3b7; }
+.swatch.yellow { background: #fff0c9; border-color: #e9d699; }
+.bottom { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 16px; margin-top: 18px; }
+.dice-panel { padding: 18px; }
+.dice-row { display: flex; gap: 12px; margin-top: 13px; align-items: center; }
+.die { width: 50px; height: 50px; flex-shrink: 0; border: 1px solid #cbdce8; border-radius: 11px; background: #fff; display: grid; place-items: center; font-size: 27px; font-weight: bold; }
+.primary { background: var(--blue); color: white; border: none; border-radius: 9px; padding: 10px 12px; font-size: 12px; line-height: 1.3; }
+.primary:hover { background: #477b9c; }
+.dice-note { font-size: 11px; color: #768b98; line-height: 1.5; margin: 12px 0 0; }
+.message-panel { padding: 19px 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 15px; }
+.message-label { color: #6b8799; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px; margin: 0 0 9px; }
+#message { font-size: 14px; line-height: 1.6; margin: 0; }
+.message-panel[data-kind="back"] { background: #fff3ee; border-color: #e6c5ba; }
+.message-panel[data-kind="win"] { background: #fff8df; border-color: #e9d699; }
+.message-panel[data-kind="forward"] { background: #eff8ed; }
+.reset { align-self: flex-start; border: none; border-bottom: 1px solid #a6bdcc; background: none; padding: 0 0 3px; font-size: 11px; color: #688698; }
+footer { font-size: 12px; color: #728b9b; text-align: center; margin-top: 22px; line-height: 1.7; }
+@media (max-width: 1000px) { .game { grid-template-columns: 155px minmax(0,1fr); gap: 14px; } .board-panel { padding: 18px 14px; } .page { padding: 26px 16px; } }
+@media (max-width: 740px) {
+  .game { display: block; }
+  .animals { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 14px; margin-bottom: 14px; }
+  .animal-heading { grid-column: 1 / -1; }
+  .animal-card { margin-top: 2px; padding: 8px; }
+  .animal-choice { font-size: 11px; }
+  .home { height: 58px; }
+  .home:empty::after { font-size: 9px; }
+  .bottom { grid-template-columns: 1fr; }
+  .dice-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; align-items: center; }
+  .dice-row { grid-column: 2; grid-row: 1 / 3; margin: 0; }
+  .dice-note { margin: 0; }
+  .board-heading { margin-bottom: 14px; }
+  .pill { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>Лесная бродилка</h1>
+  </header>
+  <div class="game">
+    <aside class="panel animals" aria-label="Игровые фишки">
+      <div class="animal-heading"><h2>Зверята</h2><p class="small">Выбери и перетащи на поле</p></div>
+      <div class="animal-card active" id="card-bunny">
+        <button class="animal-choice" data-animal="bunny" aria-pressed="true">Зайчонок <span class="choice-dot"></span></button>
+        <div class="home" id="home-bunny"></div><div class="position" id="position-bunny">Ждёт старта</div>
+      </div>
+      <div class="animal-card" id="card-fox">
+        <button class="animal-choice" data-animal="fox" aria-pressed="false">Лисёнок <span class="choice-dot"></span></button>
+        <div class="home" id="home-fox"></div><div class="position" id="position-fox">Ждёт старта</div>
+      </div>
+      <div class="animal-card" id="card-bear">
+        <button class="animal-choice" data-animal="bear" aria-pressed="false">Медвежонок <span class="choice-dot"></span></button>
+        <div class="home" id="home-bear"></div><div class="position" id="position-bear">Ждёт старта</div>
+      </div>
+    </aside>
+    <div>
+      <section class="panel board-panel" aria-label="Игровое поле">
+        <div class="board-heading"><div><h2>По лесной тропинке</h2><p class="small">Начни со старта и двигайся по номерам.</p></div></div>
+        <div class="board-scroll">
+          <div class="board" id="board">
+            <svg class="path" viewBox="0 0 900 320" preserveAspectRatio="none" aria-hidden="true"><path d="M50 50 H150 H250 L350 160 L450 270 H550 L650 160 L750 50 H850 V160 V270" fill="none" stroke="#c2d7e5" stroke-width="3" stroke-linecap="round" stroke-dasharray="3 8"/></svg>
+          </div>
+        </div>
+        <div class="legend"><span><i class="swatch"></i>На 2 клетки назад</span><span><i class="swatch green"></i>На 2 клетки вперёд</span></div>
+      </section>
+      <div class="bottom">
+        <section class="panel dice-panel">
+          <h2>Кубик удачи</h2>
+          <div class="dice-row"><div class="die" id="die" aria-label="Результат броска" aria-live="polite">?</div><button class="primary" id="roll">Бросить кубик</button></div>
+          <p class="dice-note">Кубик подскажет ход выбранного зверька. Можно играть и без него.</p>
+        </section>
+        <section class="panel message-panel" id="message-panel">
+          <div><p class="message-label">Что происходит на тропинке</p><p id="message" role="status" aria-live="polite">Начинаем? Перетащи любого зверька на клетку «Старт».</p></div>
+          <button class="reset" id="reset">Начать заново</button>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+// HTML создаёт разметку, CSS — оформление, а JavaScript нужен для перетаскивания.
+// Нумерация в массиве начинается с 0: клетка 1 имеет индекс 0.
+const cells = [
+  { col: 1, row: 1, type: 'start', text: 'СТАРТ' },
+  { col: 2, row: 1, type: '', text: '' },
+  { col: 3, row: 1, type: '', text: '' },
+  { col: 4, row: 2, type: 'back', text: '−2 шага' },
+  { col: 5, row: 3, type: '', text: '' },
+  { col: 6, row: 3, type: 'forward', text: '+2 шага' },
+  { col: 7, row: 2, type: '', text: '' },
+  { col: 8, row: 1, type: '', text: '' },
+  { col: 9, row: 1, type: 'back', text: '−2 шага' },
+  { col: 9, row: 2, type: '', text: '' },
+  { col: 9, row: 3, type: 'finish', text: 'ФИНИШ' }
+];
+
+// Зверята нарисованы встроенным SVG, поэтому интернет для картинок не нужен.
+const animals = {
+  bunny: {
+    name: 'Зайчонок', position: null,
+    picture: '<svg viewBox="0 0 64 74" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><ellipse cx="32" cy="66" rx="21" ry="4" fill="#a8c5d2" opacity=".2"/><ellipse cx="22" cy="20" rx="8" ry="18" fill="#eee9e2" stroke="#c5b9ab"/><ellipse cx="42" cy="20" rx="8" ry="18" fill="#eee9e2" stroke="#c5b9ab"/><ellipse cx="22" cy="20" rx="3" ry="12" fill="#eec7c5"/><ellipse cx="42" cy="20" rx="3" ry="12" fill="#eec7c5"/><ellipse cx="32" cy="55" rx="17" ry="14" fill="#eee9e2" stroke="#c5b9ab"/><ellipse cx="32" cy="42" rx="23" ry="21" fill="#f7f3ed" stroke="#c5b9ab"/><ellipse cx="19" cy="48" rx="5" ry="3" fill="#efceca"/><ellipse cx="45" cy="48" rx="5" ry="3" fill="#efceca"/><circle cx="24" cy="40" r="2.3" fill="#473e39"/><circle cx="40" cy="40" r="2.3" fill="#473e39"/><path d="M29 46 Q32 43 35 46 L32 49Z" fill="#ce9692"/><path d="M32 49 V52 M27 52 Q32 56 37 52" stroke="#8d776b" fill="none" stroke-linecap="round"/><path d="M23 62 Q32 68 41 62" fill="#b3d5e4"/></svg>'
+  },
+  fox: {
+    name: 'Лисёнок', position: null,
+    picture: '<svg viewBox="0 0 64 74" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><ellipse cx="32" cy="67" rx="22" ry="4" fill="#a8c5d2" opacity=".2"/><path d="M45 62 Q64 61 59 40 Q51 42 49 52" fill="#d78c53" stroke="#b47447"/><path d="M59 40 Q53 42 51 47 L59 49Z" fill="#fff0db"/><ellipse cx="31" cy="55" rx="16" ry="14" fill="#dd965a" stroke="#ba7c4d"/><ellipse cx="31" cy="58" rx="9" ry="10" fill="#fff0db"/><path d="M10 32 L9 8 L27 21 H38 L54 8 L54 33 Q55 52 32 57 Q9 52 10 32Z" fill="#e7a065" stroke="#ba7c4d" stroke-linejoin="round"/><path d="M14 27 L14 15 L24 24 M42 24 L49 15 L49 28" fill="#7c5143"/><path d="M11 35 Q23 34 32 48 Q40 34 53 35 Q52 52 32 57 Q12 52 11 35" fill="#fff0db"/><circle cx="23" cy="34" r="2.3" fill="#473e39"/><circle cx="41" cy="34" r="2.3" fill="#473e39"/><path d="M28 46 Q32 43 36 46 Q32 53 28 46" fill="#60483c"/><path d="M32 50 V53" stroke="#60483c" stroke-linecap="round"/></svg>'
+  },
+  bear: {
+    name: 'Медвежонок', position: null,
+    picture: '<svg viewBox="0 0 64 74" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><ellipse cx="32" cy="67" rx="22" ry="4" fill="#a8c5d2" opacity=".2"/><ellipse cx="32" cy="56" rx="18" ry="14" fill="#b68c6c" stroke="#937055"/><ellipse cx="32" cy="58" rx="10" ry="9" fill="#e7c7a2"/><circle cx="14" cy="20" r="10" fill="#b68c6c" stroke="#937055"/><circle cx="50" cy="20" r="10" fill="#b68c6c" stroke="#937055"/><circle cx="14" cy="20" r="5" fill="#e7c7a2"/><circle cx="50" cy="20" r="5" fill="#e7c7a2"/><ellipse cx="32" cy="37" rx="25" ry="23" fill="#bd9471" stroke="#937055"/><ellipse cx="32" cy="45" rx="12" ry="10" fill="#ecd1b0"/><circle cx="23" cy="34" r="2.3" fill="#3f342d"/><circle cx="41" cy="34" r="2.3" fill="#3f342d"/><ellipse cx="32" cy="42" rx="4.5" ry="3" fill="#604638"/><path d="M32 45 V49 M27 49 Q32 53 37 49" fill="none" stroke="#795744" stroke-linecap="round"/><path d="M18 57 L32 62 L46 57" fill="none" stroke="#88aca8" stroke-width="5"/></svg>'
+  }
+};
+
+let selectedAnimal = 'bunny';
+let draggedAnimal = null;
+const board = document.getElementById('board');
+const message = document.getElementById('message');
+const messagePanel = document.getElementById('message-panel');
+
+function showMessage(text, kind = '') {
+  message.textContent = text;
+  messagePanel.dataset.kind = kind;
+}
+
+function clearHint() {
+  document.querySelectorAll('.suggested').forEach(cell => cell.classList.remove('suggested'));
+}
+
+// Выделяем выбранного зверька в левой колонке.
+function selectAnimal(id) {
+  selectedAnimal = id;
+  Object.keys(animals).forEach(key => {
+    document.getElementById('card-' + key).classList.toggle('active', key === id);
+    document.querySelector('[data-animal="' + key + '"]').setAttribute('aria-pressed', key === id);
+  });
+  clearHint();
+}
+
+// Перемещение фишки и проверка условий клетки.
+function moveAnimal(id, cellIndex) {
+  const animal = animals[id];
+  if (!animal || !cells[cellIndex]) return;
+  selectAnimal(id);
+  if (animal.position === cellIndex) {
+    showMessage(animal.name + ' уже здесь. Выбери другую клетку.');
+    return;
+  }
+  let destination = cellIndex;
+  const type = cells[cellIndex].type;
+  let text = animal.name + ': клетка ' + (cellIndex + 1) + '. Продолжаем путешествие!';
+  if (type === 'back') {
+    destination = Math.max(0, cellIndex - 2);
+    text = animal.name + ': на клетке ' + (cellIndex + 1) + ' нужно сделать 2 шага назад. Фишка перемещена на клетку ' + (destination + 1) + '.';
+  } else if (type === 'forward') {
+    destination = Math.min(cells.length - 1, cellIndex + 2);
+    text = animal.name + ': удачная тропинка! 2 шага вперёд — на клетку ' + (destination + 1) + '.';
+  } else if (type === 'start') {
+    text = animal.name + ' на старте! Брось кубик или перетащи фишку на следующую клетку.';
+  }
+  animal.position = destination;
+  document.getElementById('tokens-' + destination).appendChild(document.getElementById('token-' + id));
+  document.getElementById('position-' + id).textContent = destination === cells.length - 1 ? 'На финише!' : 'Клетка ' + (destination + 1);
+  if (destination === cells.length - 1) {
+    text = animal.name + ' добрался до финиша! Остальные зверята могут продолжать игру.';
+  }
+  showMessage(text, destination === cells.length - 1 ? 'win' : type);
+}
+
+// Создаём клетки и добавляем события drag and drop.
+cells.forEach((info, index) => {
+  const cell = document.createElement('div');
+  cell.className = 'cell ' + info.type;
+  cell.style.gridColumn = info.col;
+  cell.style.gridRow = info.row;
+  cell.id = 'cell-' + index;
+  cell.tabIndex = 0;
+  cell.setAttribute('role', 'button');
+  cell.setAttribute('aria-label', 'Клетка ' + (index + 1) + (info.text ? ', ' + info.text : '') + '. Переместить выбранного зверька');
+  cell.innerHTML = '<span class="cell-number">' + (index + 1) + '</span><span class="cell-label">' + info.text + '</span><div class="cell-tokens" id="tokens-' + index + '"></div>';
+  cell.addEventListener('dragover', event => {
+    if (!draggedAnimal) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    cell.classList.add('over');
+  });
+  cell.addEventListener('dragleave', event => {
+    if (!cell.contains(event.relatedTarget)) cell.classList.remove('over');
+  });
+  cell.addEventListener('drop', event => {
+    event.preventDefault();
+    cell.classList.remove('over');
+    const id = event.dataTransfer.getData('text/plain');
+    if (draggedAnimal && animals[id]) moveAnimal(id, index);
+  });
+  // Нажатие — удобная альтернатива перетаскиванию для телефона и клавиатуры.
+  cell.addEventListener('click', () => moveAnimal(selectedAnimal, index));
+  cell.addEventListener('keydown', event => {
+    if (event.target !== cell) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      moveAnimal(selectedAnimal, index);
+    }
+  });
+  board.appendChild(cell);
+});
+
+// Создаём ровно три перетаскиваемые фишки.
+Object.keys(animals).forEach(id => {
+  const token = document.createElement('button');
+  token.id = 'token-' + id;
+  token.type = 'button';
+  token.className = 'token';
+  token.draggable = true;
+  token.innerHTML = animals[id].picture;
+  token.setAttribute('aria-label', 'Выбрать: ' + animals[id].name);
+  token.title = animals[id].name + ' — перетащи на клетку';
+  token.addEventListener('dragstart', event => {
+    draggedAnimal = id;
+    selectAnimal(id);
+    event.dataTransfer.setData('text/plain', id);
+    event.dataTransfer.effectAllowed = 'move';
+    token.classList.add('dragging');
+  });
+  token.addEventListener('dragend', () => {
+    draggedAnimal = null;
+    token.classList.remove('dragging');
+    document.querySelectorAll('.over').forEach(cell => cell.classList.remove('over'));
+  });
+  token.addEventListener('click', event => {
+    event.stopPropagation();
+    selectAnimal(id);
+    showMessage(animals[id].name + ': выбери клетку нажатием или перетащи фишку мышкой.');
+  });
+  document.getElementById('home-' + id).appendChild(token);
+});
+
+document.querySelectorAll('.animal-choice').forEach(button => {
+  button.addEventListener('click', () => {
+    selectAnimal(button.dataset.animal);
+    showMessage(animals[selectedAnimal].name + ': теперь нажми на клетку или брось кубик.');
+  });
+});
+
+// Кубик не перемещает фишку сам, а подсвечивает нужную клетку.
+document.getElementById('roll').addEventListener('click', () => {
+  const animal = animals[selectedAnimal];
+  if (animal.position === cells.length - 1) {
+    showMessage(animal.name + ' уже на финише. Выбери другого зверька или начни заново.', 'win');
+    return;
+  }
+  if (animal.position === null) {
+    showMessage('Сначала поставь выбранного зверька на клетку «Старт».');
+    return;
+  }
+  const number = Math.floor(Math.random() * 6) + 1;
+  document.getElementById('die').textContent = number;
+  const target = Math.min(cells.length - 1, animal.position + number);
+  clearHint();
+  document.getElementById('cell-' + target).classList.add('suggested');
+  showMessage(animal.name + ': на кубике ' + number + '. Перетащи фишку на клетку ' + (target + 1) + ' — она выделена синей рамкой.');
+});
+
+// Начать заново: возвращаем всех зверят в левую колонку.
+document.getElementById('reset').addEventListener('click', () => {
+  Object.keys(animals).forEach(id => {
+    animals[id].position = null;
+    document.getElementById('home-' + id).appendChild(document.getElementById('token-' + id));
+    document.getElementById('position-' + id).textContent = 'Ждёт старта';
+  });
+  document.getElementById('die').textContent = '?';
+  selectAnimal('bunny');
+  showMessage('Начинаем? Перетащи любого зверька на клетку «Старт».');
+});
+</script>
+</body>
+</html>
